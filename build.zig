@@ -4,12 +4,21 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const force_pic = b.option(
+        bool,
+        "force_pic",
+        "Force PIC enabled when building the libraries",
+    );
+
     const ssl_source = b.dependency("ssl", .{});
 
-    const libfipsmodule = b.addStaticLibrary(.{
+    const libfipsmodule = b.addLibrary(.{
         .name = "fipsmodule",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .pic = if (force_pic == true) true else null,
+        }),
     });
     libfipsmodule.linkLibCpp();
     libfipsmodule.addIncludePath(ssl_source.path("include"));
@@ -23,10 +32,13 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(libfipsmodule);
 
-    const libcrypto = b.addStaticLibrary(.{
+    const libcrypto = b.addLibrary(.{
         .name = "crypto",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .pic = if (force_pic == true) true else null,
+        }),
     });
     libcrypto.linkLibC();
     libcrypto.linkLibCpp();
@@ -42,10 +54,13 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(libcrypto);
 
-    const libssl = b.addStaticLibrary(.{
+    const libssl = b.addLibrary(.{
         .name = "ssl",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .pic = if (force_pic == true) true else null,
+        }),
     });
     libssl.linkLibC();
     libssl.linkLibCpp();
@@ -71,10 +86,13 @@ pub fn build(b: *std.Build) void {
     });
     ssl_mod.linkLibrary(libssl);
 
-    const libdecrepit = b.addStaticLibrary(.{
+    const libdecrepit = b.addLibrary(.{
         .name = "decrepit",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .pic = if (force_pic == true) true else null,
+        }),
     });
     b.installArtifact(libdecrepit);
 
@@ -87,10 +105,13 @@ pub fn build(b: *std.Build) void {
         .files = decrepit_sources,
     });
 
-    const libpki = b.addStaticLibrary(.{
+    const libpki = b.addLibrary(.{
         .name = "pki",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .pic = if (force_pic == true) true else null,
+        }),
     });
     libpki.linkLibC();
     libpki.linkLibCpp();
