@@ -12,65 +12,77 @@ pub fn build(b: *std.Build) void {
 
     const ssl_source = b.dependency("ssl", .{});
 
-    const libfipsmodule = b.addLibrary(.{
-        .name = "fipsmodule",
-        .root_module = b.createModule(.{
+    const libfips = blk: {
+        const mod = b.createModule(.{
             .target = target,
+            .link_libc = true,
+            .link_libcpp = true,
             .optimize = optimize,
             .pic = if (force_pic == true) true else null,
-        }),
-    });
-    libfipsmodule.linkLibCpp();
-    libfipsmodule.addIncludePath(ssl_source.path("include"));
-    libfipsmodule.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = fipsmodule_sources,
-    });
-    libfipsmodule.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = generated_fipsmodule_sources,
-    });
-    b.installArtifact(libfipsmodule);
+        });
+        mod.addIncludePath(ssl_source.path("include"));
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = fipsmodule_sources,
+        });
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = generated_fipsmodule_sources,
+        });
+        break :blk b.addLibrary(.{
+            .name = "fipsmodule",
+            .root_module = mod,
+        });
+    };
+    b.installArtifact(libfips);
 
-    const libcrypto = b.addLibrary(.{
-        .name = "crypto",
-        .root_module = b.createModule(.{
+    const libcrypto = blk: {
+            const mod = b.createModule(.{
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
+            .link_libcpp = true,
             .pic = if (force_pic == true) true else null,
-        }),
-    });
-    libcrypto.linkLibC();
-    libcrypto.linkLibCpp();
-    libcrypto.linkLibrary(libfipsmodule);
-    libcrypto.addIncludePath(ssl_source.path("include"));
-    libcrypto.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = crypto_sources,
-    });
-    libcrypto.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = generated_crypto_sources,
-    });
+        });
+        mod.linkLibrary(libfips);
+        mod.addIncludePath(ssl_source.path("include"));
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = crypto_sources,
+        });
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = generated_crypto_sources,
+        });
+
+        break :blk b.addLibrary(.{
+            .name = "crypto",
+            .root_module = mod,
+        });
+    };
     b.installArtifact(libcrypto);
 
-    const libssl = b.addLibrary(.{
-        .name = "ssl",
-        .root_module = b.createModule(.{
+    const libssl = blk: {
+        const mod = b.createModule(.{
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
+            .link_libcpp = true,
             .pic = if (force_pic == true) true else null,
-        }),
-    });
-    libssl.linkLibC();
-    libssl.linkLibCpp();
-    libssl.linkLibrary(libcrypto);
-    libssl.addIncludePath(ssl_source.path("include"));
+        });
+        mod.linkLibrary(libcrypto);
+        mod.addIncludePath(ssl_source.path("include"));
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = ssl_sources,
+        });
+        break :blk b.addLibrary(.{
+            .name = "ssl",
+            .root_module = mod,
+        });
+    };
     libssl.installHeadersDirectory(ssl_source.path("include"), "", .{});
-    libssl.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = ssl_sources,
-    });
+
     b.installArtifact(libssl);
 
     const ssl_translate = b.addTranslateC(.{
@@ -86,42 +98,50 @@ pub fn build(b: *std.Build) void {
     });
     ssl_mod.linkLibrary(libssl);
 
-    const libdecrepit = b.addLibrary(.{
-        .name = "decrepit",
-        .root_module = b.createModule(.{
+    const libdecrepit = blk: {
+        const mod = b.createModule(.{
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
+            .link_libcpp = true,
             .pic = if (force_pic == true) true else null,
-        }),
-    });
+        });
+        mod.addIncludePath(ssl_source.path("include"));
+        mod.linkLibrary(libcrypto);
+        mod.linkLibrary(libssl);
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = decrepit_sources,
+        });
+        break :blk b.addLibrary(.{
+            .name = "decrepit",
+            .root_module = mod,
+        });
+    };
     b.installArtifact(libdecrepit);
 
-    libdecrepit.addIncludePath(ssl_source.path("include"));
-    libdecrepit.linkLibrary(libcrypto);
-    libdecrepit.linkLibrary(libssl);
-    libdecrepit.linkLibC();
-    libdecrepit.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = decrepit_sources,
-    });
-
-    const libpki = b.addLibrary(.{
-        .name = "pki",
-        .root_module = b.createModule(.{
+    const libpki = blk: {
+        const mod = b.createModule(.{
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
+            .link_libcpp = true,
             .pic = if (force_pic == true) true else null,
-        }),
-    });
-    libpki.linkLibC();
-    libpki.linkLibCpp();
-    libpki.linkLibrary(libcrypto);
-    libpki.addIncludePath(ssl_source.path("include"));
-    libpki.addCSourceFiles(.{
-        .root = ssl_source.path("."),
-        .files = pki_sources,
-        .flags = &.{"-D_BORINGSSL_LIBPKI_"},
-    });
+        });
+
+        mod.linkLibrary(libcrypto);
+        mod.addIncludePath(ssl_source.path("include"));
+        mod.addCSourceFiles(.{
+            .root = ssl_source.path("."),
+            .files = pki_sources,
+            .flags = &.{"-D_BORINGSSL_LIBPKI_"},
+        });
+
+        break :blk b.addLibrary(.{
+            .name = "pki",
+            .root_module = mod,
+        });
+    };
 
     b.installArtifact(libpki);
 
