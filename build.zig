@@ -10,6 +10,21 @@ pub fn build(b: *std.Build) void {
         "Force PIC enabled when building the libraries",
     );
 
+    // For embedders that link these into a shared library: Mach-O has no
+    // version-script equivalent, so the only way to keep BoringSSL out of that
+    // library's export table (where it would interpose on a host's own
+    // OpenSSL) is to hide the symbols at compile time.
+    const hidden_visibility = b.option(
+        bool,
+        "hidden_visibility",
+        "Build the libraries with -fvisibility=hidden",
+    ) orelse false;
+    const flags: []const []const u8 = if (hidden_visibility) &.{"-fvisibility=hidden"} else &.{};
+    const pki_flags: []const []const u8 = if (hidden_visibility)
+        &.{ "-fvisibility=hidden", "-D_BORINGSSL_LIBPKI_" }
+    else
+        &.{"-D_BORINGSSL_LIBPKI_"};
+
     const ssl_source = b.dependency("ssl", .{});
 
     const libfips = blk: {
@@ -24,10 +39,12 @@ pub fn build(b: *std.Build) void {
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = fipsmodule_sources,
+            .flags = flags,
         });
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = generated_fipsmodule_sources,
+            .flags = flags,
         });
         break :blk b.addLibrary(.{
             .name = "fipsmodule",
@@ -37,7 +54,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(libfips);
 
     const libcrypto = blk: {
-            const mod = b.createModule(.{
+        const mod = b.createModule(.{
             .target = target,
             .optimize = optimize,
             .link_libc = true,
@@ -49,10 +66,12 @@ pub fn build(b: *std.Build) void {
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = crypto_sources,
+            .flags = flags,
         });
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = generated_crypto_sources,
+            .flags = flags,
         });
 
         break :blk b.addLibrary(.{
@@ -75,6 +94,7 @@ pub fn build(b: *std.Build) void {
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = ssl_sources,
+            .flags = flags,
         });
         break :blk b.addLibrary(.{
             .name = "ssl",
@@ -112,6 +132,7 @@ pub fn build(b: *std.Build) void {
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = decrepit_sources,
+            .flags = flags,
         });
         break :blk b.addLibrary(.{
             .name = "decrepit",
@@ -134,7 +155,7 @@ pub fn build(b: *std.Build) void {
         mod.addCSourceFiles(.{
             .root = ssl_source.path("."),
             .files = pki_sources,
-            .flags = &.{"-D_BORINGSSL_LIBPKI_"},
+            .flags = pki_flags,
         });
 
         break :blk b.addLibrary(.{
