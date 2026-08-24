@@ -8,9 +8,12 @@
         "build.zig.zon",
     },
     .dependencies = .{
+        // 打了 curl-impersonate boringssl.patch 的 BoringSSL。
+        // 上游基线：google/boringssl@156c7b75ae9b8c3b3f847acf264f17594c3859fb
+        // 补丁来源：lexiforest/curl-impersonate patches/boringssl.patch
         .ssl = .{
-            .url = "git+https://github.com/google/boringssl#535cc391915c37912ff9b3edb0cff9b3c5c77db0",
-            .hash = "N-V-__8AADGOTAg2qy2JMjVSleelXVWZhf9UTIjkuioQsv9-",
+            .url = "https://github.com/ranhongfeixue/boringssl-impersonate/archive/02dfb30faff9395f47d05d398337d065cd660e97.tar.gz",
+            .hash = "N-V-__8AAJHoZQI8z1Bo1LZCb5ZCoE0UNKAcC9fT0_xl-Re-",
         },
     },
 }
